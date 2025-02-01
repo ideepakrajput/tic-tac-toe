@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-indigo-100 to-purple-100 max-h-[80vh]">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-4xl font-bold text-center mb-8 text-indigo-600">Tic-Tac-Toe</h1>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded"></div>
+
+        <!-- Setup Form -->
+        <div id="setup" class="bg-white rounded-lg shadow-lg p-6 space-y-4 max-w-md mx-auto">
+            <div class="space-y-2">
+                <label for="playerName" class="block text-sm font-medium text-gray-700">Your Name</label>
+                <input type="text" id="playerName" placeholder="Enter your name" 
+                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+            </div>
+            <div class="space-y-2">
+                <label for="playerSymbol" class="block text-sm font-medium text-gray-700">Your Symbol</label>
+                <input type="text" id="playerSymbol" maxlength="2" placeholder="One letter (X/O) or emoji (😊)" 
+                    class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                <p class="text-xs text-gray-500">Use a single letter (X/O) or one emoji</p>
+            </div>
+            <button id="joinGame" 
+                class="w-full bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition duration-200">
+                Join Game
+            </button>
+            <div id="roomLink" class="hidden space-y-2">
+                <p class="text-sm font-medium text-gray-700">Share this link with your opponent:</p>
+                <div class="flex gap-2">
+                    <input type="text" id="link" readonly 
+                        class="flex-1 px-4 py-2 border rounded-md bg-gray-50" />
+                    <button id="copyLink"
+                        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition duration-200">
+                        Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Profiles -->
+        <div id="profiles" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+            <div class="player1-profile bg-white p-6 rounded-lg shadow-lg text-center">
+                <div class="flex items-center justify-center gap-2">
+                    <h3 class="font-bold text-xl mb-2 player1-name"></h3>
+                    <span class="player1-indicator text-sm bg-indigo-100 text-indigo-800 px-2 py-1 rounded hidden">(Me)</span>
+                </div>
+                <p class="mb-1">Symbol: <span class="player1-symbol text-xl"></span></p>
+                <p>Wins: <span class="player1-wins font-bold text-indigo-600">0</span></p>
+            </div>
+            <div class="player2-profile bg-white p-6 rounded-lg shadow-lg text-center">
+                <div class="flex items-center justify-center gap-2">
+                    <h3 class="font-bold text-xl mb-2 player2-name"></h3>
+                    <span class="player2-indicator text-sm bg-indigo-100 text-indigo-800 px-2 py-1 rounded hidden">(Me)</span>
+                </div>
+                <p class="mb-1">Symbol: <span class="player2-symbol text-xl"></span></p>
+                <p>Wins: <span class="player2-wins font-bold text-indigo-600">0</span></p>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="board" class="hidden max-w-[320px] mx-auto">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="0"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="1"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="2"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="3"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="4"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="5"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="6"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="7"></div>
+                <div class="cell bg-white h-24 flex items-center justify-center text-4xl cursor-pointer hover:bg-gray-50 rounded-lg shadow transition duration-200" data-index="8"></div>
+            </div>
+        </div>
+
+        <div class="text-center mt-6">
+            <button id="reset" class="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200 hidden">
+                Reset Game
+            </button>
+            <p id="status" class="mt-4 text-xl font-medium text-gray-800"></p>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const setupDiv = document.getElementById('setup');
+        const boardDiv = document.getElementById('board');
+        const resetButton = document.getElementById('reset');
+        const statusText = document.getElementById('status');
+        const roomLinkDiv = document.getElementById('roomLink');
+        const linkSpan = document.getElementById('link');
+        const errorMessageDiv = document.getElementById('errorMessage');
+
+        let roomId;
+        let playerName;
+        let playerSymbol;
+        let myPlayerId;
+
+        function showError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorMessageDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        function isEmoji(str) {
+            const emojiRegex = /^[\p{Emoji}]$/u;
+            return emojiRegex.test(str);
+        }
+
+        function validateSymbol(symbol) {
+            if (!symbol) return false;
+            symbol = symbol.trim();
+            return symbol.length === 1 || isEmoji(symbol);
+        }
+
+        document.getElementById('copyLink').addEventListener('click', () => {
+            const linkInput = document.getElementById('link');
+            linkInput.select();
+            document.execCommand('copy');
+            
+            const button = document.getElementById('copyLink');
+            button.textContent = 'Copied!';
+            button.classList.remove('bg-green-600', 'hover:bg-green-700');
+            button.classList.add('bg-gray-600');
+            
+            setTimeout(() => {
+                button.textContent = 'Copy';
+                button.classList.remove('bg-gray-600');
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+            }, 2000);
+        });
+
+        socket.on('startGame', (room) => {
+            setupDiv.style.display = 'none';
+            boardDiv.classList.remove('hidden');
+            resetButton.classList.remove('hidden');
+            updateBoard(room.gameState);
+        });
+
+        socket.on('roomFull', () => {
+            showError('Room is full! Please try another room.');
+        });
+
+        socket.on('invalidJoin', (message) => {
+            showError(message);
+        });
+
+        socket.on('playerJoined', (data) => {
+            myPlayerId = data.playerId;
+            updatePlayerIndicators();
+        });
+
+        function updatePlayerIndicators() {
+            document.querySelector('.player1-indicator').classList.add('hidden');
+            document.querySelector('.player2-indicator').classList.add('hidden');
+            
+            if (myPlayerId === 'player1') {
+                document.querySelector('.player1-indicator').classList.remove('hidden');
+            } else if (myPlayerId === 'player2') {
+                document.querySelector('.player2-indicator').classList.remove('hidden');
+            }
+        }
+
+        socket.on('updatePlayers', (data) => {
+            const profiles = document.getElementById('profiles');
+            profiles.classList.remove('hidden');
+
+            const { players, scores } = data;
+
+            if (players.length >= 1) {
+                document.querySelector('.player1-name').textContent = players[0].name;
+                document.querySelector('.player1-symbol').textContent = players[0].symbol;
+                document.querySelector('.player1-wins').textContent = scores.player1;
+            }
+
+            if (players.length === 2) {
+                document.querySelector('.player2-name').textContent = players[1].name;
+                document.querySelector('.player2-symbol').textContent = players[1].symbol;
+                document.querySelector('.player2-wins').textContent = scores.player2;
+            }
+
+            updatePlayerIndicators();
+        });
+
+        document.getElementById('joinGame').addEventListener('click', () => {
+            playerName = document.getElementById('playerName').value.trim();
+            playerSymbol = document.getElementById('playerSymbol').value.trim();
+
+            if (!playerName || !playerSymbol) {
+                showError('Please enter both name and symbol');
+                return;
+            }
+
+            if (!validateSymbol(playerSymbol)) {
+                showError('Symbol must be a single letter or emoji');
+                return;
+            }
+
+            roomId = window.location.hash.substring(1) || Math.random().toString(36).substring(7);
+            window.location.hash = roomId;
+            linkSpan.value = window.location.href;
+            roomLinkDiv.classList.remove('hidden');
+
+            socket.emit('joinRoom', roomId, playerName, playerSymbol);
+        });
+
+        socket.on('updateGame', (room) => {
+            boardDiv.classList.remove('hidden');
+            resetButton.classList.remove('hidden');
+            updateBoard(room.gameState);
+            const currentPlayer = room.players[room.currentPlayer];
+            statusText.textContent = `It's ${currentPlayer.name}'s turn (${currentPlayer.symbol})`;
+        });
+
+        socket.on('gameOver', (data) => {
+            if (data.winner) {
+                statusText.textContent = `🎉 ${data.winner.name} (${data.winner.symbol}) wins! 🎉`;
+            } else {
+                statusText.textContent = '🤝 Draw! 🤝';
+            }
+        });
+
+        boardDiv.querySelectorAll('.cell').forEach((cell) => {
+            cell.addEventListener('click', () => {
+                const index = cell.getAttribute('data-index');
+                socket.emit('makeMove', roomId, index);
+            });
+        });
+
+        resetButton.addEventListener('click', () => {
+            socket.emit('resetGame', roomId);
+        });
+
+        function updateBoard(gameState) {
+            boardDiv.querySelectorAll('.cell').forEach((cell, index) => {
+                cell.textContent = gameState[index];
+            });
+        }
+    </script>
+</body>
+</html>
